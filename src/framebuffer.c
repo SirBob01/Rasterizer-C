@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "framebuffer.h"
+#include "math.h"
 
 void create_framebuffer(framebuffer_t *framebuffer,
                         unsigned width,
@@ -19,6 +20,43 @@ void destroy_framebuffer(framebuffer_t *framebuffer) {
     assert(framebuffer != NULL);
     assert(framebuffer->buffer != NULL);
     free(framebuffer->buffer);
+}
+
+void draw_mesh_framebuffer(framebuffer_t *framebuffer,
+                           mesh_t *mesh,
+                           mat4_t *model,
+                           mat4_t *view,
+                           mat4_t *projection) {
+    mat4_t mv, mvp;
+    mul_mat4(view, model, &mv);
+    mul_mat4(projection, &mv, &mvp);
+
+    for (unsigned i = 0; i < mesh->index_count; i += 3) {
+        vertex_t *a = mesh->vertices + mesh->indices[i + 0];
+        vertex_t *b = mesh->vertices + mesh->indices[i + 1];
+        vertex_t *c = mesh->vertices + mesh->indices[i + 2];
+
+        // Convert vertices to clip space
+        vec3_t ca, cb, cc;
+        local_to_clip(&a->position, &mvp, &ca);
+        local_to_clip(&b->position, &mvp, &cb);
+        local_to_clip(&c->position, &mvp, &cc);
+
+        // Compute screen space coordinates
+        vec2_t sa, sb, sc;
+        clip_to_screen(&ca, framebuffer->width, framebuffer->height, &sa);
+        clip_to_screen(&cb, framebuffer->width, framebuffer->height, &sb);
+        clip_to_screen(&cc, framebuffer->width, framebuffer->height, &sc);
+
+        // Rasterize
+        rasterize_triangle_framebuffer(framebuffer,
+                                       &sa,
+                                       &sb,
+                                       &sc,
+                                       &a->color,
+                                       &b->color,
+                                       &c->color);
+    }
 }
 
 void rasterize_triangle_framebuffer(framebuffer_t *framebuffer,

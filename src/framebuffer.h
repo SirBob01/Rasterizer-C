@@ -3,6 +3,7 @@
 
 #include "color.h"
 #include "math.h"
+#include "mesh.h"
 
 /**
  * @brief Buffer of RGBA color pixels that represents a render target.
@@ -31,6 +32,21 @@ void create_framebuffer(framebuffer_t *framebuffer,
  * @param framebuffer
  */
 void destroy_framebuffer(framebuffer_t *framebuffer);
+
+/**
+ * @brief Draw a mesh to the framebuffer.
+ *
+ * @param framebuffer
+ * @param mesh
+ * @param model
+ * @param view
+ * @param projection
+ */
+void draw_mesh_framebuffer(framebuffer_t *framebuffer,
+                           mesh_t *mesh,
+                           mat4_t *model,
+                           mat4_t *view,
+                           mat4_t *projection);
 
 /**
  * @brief Rasterize a triangle.
