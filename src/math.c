@@ -2,6 +2,10 @@
 
 #include "./math.h"
 
+float min(float a, float b) { return a < b ? a : b; }
+
+float max(float a, float b) { return a > b ? a : b; }
+
 float dot_vec2(const vec2_t *a, const vec2_t *b) {
     return a->x * b->x + a->y * b->y;
 }
@@ -54,9 +58,9 @@ void compute_barycentric(const vec2_t *a,
     float d21 = dot_vec2(&ap, &ac);
     float inv = 1.0 / (d00 * d11 - d01 * d01);
 
-    result->x = (d11 * d20 - d01 * d21) * inv;
-    result->y = (d00 * d21 - d01 * d20) * inv;
-    result->z = 1.0 - (result->x + result->y);
+    result->y = (d11 * d20 - d01 * d21) * inv;
+    result->z = (d00 * d21 - d01 * d20) * inv;
+    result->x = 1.0 - (result->y + result->z);
 }
 
 void make_axis_angle_quat(quat_t *quat, const vec3_t *axis, float angle) {
@@ -78,9 +82,9 @@ void make_identity_mat4(mat4_t *mat) {
 }
 
 void make_transform_mat4(mat4_t *mat,
-                         vec3_t *position,
-                         quat_t *rotation,
-                         vec3_t *scale) {
+                         const vec3_t *position,
+                         const quat_t *rotation,
+                         const vec3_t *scale) {
     float x = rotation->x;
     float y = rotation->y;
     float z = rotation->z;
@@ -125,9 +129,9 @@ void make_transform_mat4(mat4_t *mat,
 }
 
 void make_view_mat4(mat4_t *mat,
-                    vec3_t *position,
-                    vec3_t *forward,
-                    vec3_t *up) {
+                    const vec3_t *position,
+                    const vec3_t *forward,
+                    const vec3_t *up) {
     vec3_t z = *forward;
     negate_vec3(&z);
 
@@ -188,7 +192,7 @@ void make_perspective_mat4(mat4_t *mat,
     mat->elements[15] = 0;
 }
 
-void mul_mat4(mat4_t *a, mat4_t *b, mat4_t *c) {
+void mul_mat4(const mat4_t *a, const mat4_t *b, mat4_t *c) {
     static const unsigned N = 4;
     for (unsigned i = 0; i < N; i++) {
         for (unsigned j = 0; j < N; j++) {
@@ -201,7 +205,7 @@ void mul_mat4(mat4_t *a, mat4_t *b, mat4_t *c) {
     }
 }
 
-void apply_mat4(vec4_t *point, mat4_t *transform, vec4_t *result) {
+void apply_mat4(const vec4_t *point, const mat4_t *transform, vec4_t *result) {
     result->x =
         transform->elements[0] * point->x + transform->elements[4] * point->y +
         transform->elements[8] * point->z + transform->elements[12] * point->w;
@@ -219,22 +223,25 @@ void apply_mat4(vec4_t *point, mat4_t *transform, vec4_t *result) {
         transform->elements[11] * point->z + transform->elements[15] * point->w;
 }
 
-void local_to_clip(vec3_t *position, mat4_t *mvp, vec3_t *result) {
-    vec4_t v4 = {.x = position->x, .y = position->y, .z = position->z, .w = 1};
-    vec4_t clip_space;
-    apply_mat4(&v4, mvp, &clip_space);
-
-    result->x = clip_space.x / clip_space.w;
-    result->y = clip_space.y / clip_space.w;
-    result->z = clip_space.z / clip_space.w;
+void local_to_clip(const vec3_t *position, const mat4_t *mvp, vec4_t *result) {
+    vec4_t v4 = {
+        .x = position->x,
+        .y = position->y,
+        .z = position->z,
+        .w = 1,
+    };
+    apply_mat4(&v4, mvp, result);
 }
 
-void clip_to_screen(vec3_t *clip,
+void clip_to_screen(const vec4_t *clip,
                     unsigned width,
                     unsigned height,
                     vec2_t *result) {
-    result->x = width * ((clip->x + 1.0) / 2.0);
-    result->y = height * (1.0 - ((clip->y + 1.0) / 2.0));
+    float inv_w = 1.0 / clip->w;
+    float ndc_x = clip->x * inv_w;
+    float ndc_y = clip->y * inv_w;
+    result->x = width * ((ndc_x + 1.0) * 0.5);
+    result->y = height * ((ndc_y + 1.0) * 0.5);
 }
 
 float degrees_to_radians(float v) { return v * M_PI / 180.0; }

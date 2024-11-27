@@ -43,6 +43,9 @@ void create_display(display_t *display,
                                      width,
                                      height,
                                      SDL_LOGICAL_PRESENTATION_LETTERBOX);
+
+    // Set the scale mode of the display texture
+    SDL_SetTextureScaleMode(display->texture, SDL_SCALEMODE_NEAREST);
 }
 
 void destroy_display(display_t *display) {
@@ -55,8 +58,8 @@ void refresh_display(display_t *display, framebuffer_t *framebuffer) {
     // Update the texture
     SDL_UpdateTexture(display->texture,
                       NULL,
-                      framebuffer->buffer,
-                      framebuffer->width * PIXEL_STRIDE);
+                      framebuffer->color,
+                      framebuffer->width * sizeof(color_t));
 
     // Render the texture
     SDL_SetRenderDrawBlendMode(display->renderer, SDL_BLENDMODE_NONE);

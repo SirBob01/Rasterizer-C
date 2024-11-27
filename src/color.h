@@ -12,10 +12,4 @@ typedef struct {
     unsigned char r;
 } color_t;
 
-/**
- * @brief Stride length of a pixel.
- *
- */
-static const unsigned PIXEL_STRIDE = sizeof(color_t);
-
 #endif

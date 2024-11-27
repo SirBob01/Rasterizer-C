@@ -51,6 +51,23 @@ typedef struct {
 } mat4_t;
 
 /**
+ * @brief Compute the minimum of two floats.
+ *
+ * @param a
+ * @param b
+ * @return float
+ */
+float min(float a, float b);
+
+/**
+ * @brief Compute the maximum of two floats.
+ *
+ * @param a
+ * @param b
+ */
+float max(float a, float b);
+
+/**
  * @brief Compute the dot product of 2D vectors.
  *
  * @param a
@@ -131,9 +148,9 @@ void make_identity_mat4(mat4_t *mat);
  * @param scale
  */
 void make_transform_mat4(mat4_t *mat,
-                         vec3_t *translate,
-                         quat_t *rotation,
-                         vec3_t *scale);
+                         const vec3_t *translate,
+                         const quat_t *rotation,
+                         const vec3_t *scale);
 
 /**
  * @brief Make a view matrix.
@@ -143,7 +160,10 @@ void make_transform_mat4(mat4_t *mat,
  * @param forward
  * @param up
  */
-void make_view_mat4(mat4_t *mat, vec3_t *position, vec3_t *forward, vec3_t *up);
+void make_view_mat4(mat4_t *mat,
+                    const vec3_t *position,
+                    const vec3_t *forward,
+                    const vec3_t *up);
 /**
  * @brief Make a perspective projection matrix.
  *
@@ -166,7 +186,7 @@ void make_perspective_mat4(mat4_t *mat,
  * @param b
  * @param c
  */
-void mul_mat4(mat4_t *a, mat4_t *b, mat4_t *c);
+void mul_mat4(const mat4_t *a, const mat4_t *b, mat4_t *c);
 
 /**
  * @brief Apply a 4x4 matrix to a 4D vector.
@@ -175,7 +195,7 @@ void mul_mat4(mat4_t *a, mat4_t *b, mat4_t *c);
  * @param transform
  * @param result
  */
-void apply_mat4(vec4_t *point, mat4_t *transform, vec4_t *result);
+void apply_mat4(const vec4_t *point, const mat4_t *transform, vec4_t *result);
 
 /**
  * @brief Convert a 3D local vertex position to clip space.
@@ -184,7 +204,7 @@ void apply_mat4(vec4_t *point, mat4_t *transform, vec4_t *result);
  * @param mvp
  * @param result
  */
-void local_to_clip(vec3_t *position, mat4_t *mvp, vec3_t *result);
+void local_to_clip(const vec3_t *position, const mat4_t *mvp, vec4_t *result);
 
 /**
  * @brief Convert a 3D clip position to screen space.
@@ -194,7 +214,7 @@ void local_to_clip(vec3_t *position, mat4_t *mvp, vec3_t *result);
  * @param height
  * @param result
  */
-void clip_to_screen(vec3_t *clip,
+void clip_to_screen(const vec4_t *clip,
                     unsigned width,
                     unsigned height,
                     vec2_t *result);
