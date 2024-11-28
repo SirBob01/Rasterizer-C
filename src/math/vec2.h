@@ -53,6 +53,15 @@ vec2_t negate_vec2(vec2_t a);
 vec2_t normalize_vec2(vec2_t a);
 
 /**
+ * @brief Compute the cross product of vectors.
+ *
+ * @param a
+ * @param b
+ * @return float
+ */
+float cross_vec2(vec2_t a, vec2_t b);
+
+/**
  * @brief Compute the dot product of vectors.
  *
  * @param a

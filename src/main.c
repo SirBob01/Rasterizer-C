@@ -96,7 +96,8 @@ int main() {
                               &texture,
                               model,
                               view,
-                              projection);
+                              projection,
+                              true);
 
         refresh_display(&display, &framebuffer);
         clear_framebuffer(&framebuffer, clear_color);

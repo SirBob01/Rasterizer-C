@@ -31,10 +31,12 @@ void draw_mesh_framebuffer(framebuffer_t *framebuffer,
                            const texture_t *texture,
                            mat4_t model,
                            mat4_t view,
-                           mat4_t projection) {
+                           mat4_t projection,
+                           bool cull_back) {
     mat4_t mv = mul_mat4(view, model);
     mat4_t mvp = mul_mat4(projection, mv);
 
+    // Iterate over each triangle
     for (unsigned i = 0; i < mesh->index_count; i += 3) {
         vertex_t *a = mesh->vertices + mesh->indices[i + 0];
         vertex_t *b = mesh->vertices + mesh->indices[i + 1];
@@ -49,6 +51,15 @@ void draw_mesh_framebuffer(framebuffer_t *framebuffer,
         vec2_t sa = clip_to_raster(ca, framebuffer->width, framebuffer->height);
         vec2_t sb = clip_to_raster(cb, framebuffer->width, framebuffer->height);
         vec2_t sc = clip_to_raster(cc, framebuffer->width, framebuffer->height);
+
+        // Backface culling
+        if (cull_back) {
+            vec2_t ab = sub_vec2(sb, sa);
+            vec2_t ac = sub_vec2(sc, sa);
+            if (cross_vec2(ab, ac) >= 0) {
+                continue;
+            }
+        }
 
         // Rasterize
         rasterize_triangle_framebuffer(framebuffer,

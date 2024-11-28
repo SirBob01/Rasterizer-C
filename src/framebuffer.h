@@ -1,6 +1,8 @@
 #ifndef FRAMEBUFFER_H
 #define FRAMEBUFFER_H
 
+#include <stdbool.h>
+
 #include "color.h"
 #include "math/mat4.h"
 #include "mesh.h"
@@ -49,7 +51,8 @@ void draw_mesh_framebuffer(framebuffer_t *framebuffer,
                            const texture_t *texture,
                            mat4_t model,
                            mat4_t view,
-                           mat4_t projection);
+                           mat4_t projection,
+                           bool cull_back);
 
 /**
  * @brief Rasterize a triangle.

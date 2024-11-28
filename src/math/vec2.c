@@ -36,4 +36,6 @@ vec2_t normalize_vec2(vec2_t a) {
     return scale_vec2(a, inv_length);
 }
 
+float cross_vec2(vec2_t a, vec2_t b) { return a.x * b.y - a.y * b.x; }
+
 float dot_vec2(vec2_t a, vec2_t b) { return a.x * b.x + a.y * b.y; }
