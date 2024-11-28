@@ -1,8 +1,8 @@
 #ifndef MESH_H
 #define MESH_H
 
-#include "color.h"
-#include "math.h"
+#include "math/vec2.h"
+#include "math/vec3.h"
 
 typedef unsigned index_t;
 
@@ -12,7 +12,7 @@ typedef unsigned index_t;
  */
 typedef struct {
     vec3_t position;
-    color_t color;
+    vec2_t uv;
 } vertex_t;
 
 /**
@@ -35,6 +35,14 @@ typedef struct {
  * @param index_count
  */
 void create_mesh(mesh_t *mesh, unsigned vertex_count, unsigned index_count);
+
+/**
+ * @brief Load a mesh from an obj file.
+ *
+ * @param mesh
+ * @param filename
+ */
+void load_obj_mesh(mesh_t *mesh, const char *filename);
 
 /**
  * @brief Destroy a mesh.

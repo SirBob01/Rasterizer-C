@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "framebuffer.h"
-#include "math.h"
+#include "math/utils.h"
 
 void create_framebuffer(framebuffer_t *framebuffer,
                         unsigned width,
@@ -28,12 +28,12 @@ void destroy_framebuffer(framebuffer_t *framebuffer) {
 
 void draw_mesh_framebuffer(framebuffer_t *framebuffer,
                            const mesh_t *mesh,
-                           const mat4_t *model,
-                           const mat4_t *view,
-                           const mat4_t *projection) {
-    mat4_t mv, mvp;
-    mul_mat4(view, model, &mv);
-    mul_mat4(projection, &mv, &mvp);
+                           const texture_t *texture,
+                           mat4_t model,
+                           mat4_t view,
+                           mat4_t projection) {
+    mat4_t mv = mul_mat4(view, model);
+    mat4_t mvp = mul_mat4(projection, mv);
 
     for (unsigned i = 0; i < mesh->index_count; i += 3) {
         vertex_t *a = mesh->vertices + mesh->indices[i + 0];
@@ -41,25 +41,24 @@ void draw_mesh_framebuffer(framebuffer_t *framebuffer,
         vertex_t *c = mesh->vertices + mesh->indices[i + 2];
 
         // Convert model space to clip space
-        vec4_t ca, cb, cc;
-        local_to_clip(&a->position, &mvp, &ca);
-        local_to_clip(&b->position, &mvp, &cb);
-        local_to_clip(&c->position, &mvp, &cc);
+        vec4_t ca = apply_mat4_vec4(make_vec3_vec4(a->position, 1), mvp);
+        vec4_t cb = apply_mat4_vec4(make_vec3_vec4(b->position, 1), mvp);
+        vec4_t cc = apply_mat4_vec4(make_vec3_vec4(c->position, 1), mvp);
 
-        // Convert clip space to screen space
-        vec2_t sa, sb, sc;
-        clip_to_screen(&ca, framebuffer->width, framebuffer->height, &sa);
-        clip_to_screen(&cb, framebuffer->width, framebuffer->height, &sb);
-        clip_to_screen(&cc, framebuffer->width, framebuffer->height, &sc);
+        // Convert clip space to raster space
+        vec2_t sa = clip_to_raster(ca, framebuffer->width, framebuffer->height);
+        vec2_t sb = clip_to_raster(cb, framebuffer->width, framebuffer->height);
+        vec2_t sc = clip_to_raster(cc, framebuffer->width, framebuffer->height);
 
         // Rasterize
         rasterize_triangle_framebuffer(framebuffer,
-                                       &sa,
-                                       &sb,
-                                       &sc,
-                                       &a->color,
-                                       &b->color,
-                                       &c->color,
+                                       texture,
+                                       sa,
+                                       sb,
+                                       sc,
+                                       a->uv,
+                                       b->uv,
+                                       c->uv,
                                        ca.z,
                                        cb.z,
                                        cc.z);
@@ -67,56 +66,58 @@ void draw_mesh_framebuffer(framebuffer_t *framebuffer,
 }
 
 void rasterize_triangle_framebuffer(framebuffer_t *framebuffer,
-                                    const vec2_t *a,
-                                    const vec2_t *b,
-                                    const vec2_t *c,
-                                    const color_t *ca,
-                                    const color_t *cb,
-                                    const color_t *cc,
-                                    float da,
-                                    float db,
-                                    float dc) {
+                                    const texture_t *texture,
+                                    vec2_t pos_a,
+                                    vec2_t pos_b,
+                                    vec2_t pos_c,
+                                    vec2_t uv_a,
+                                    vec2_t uv_b,
+                                    vec2_t uv_c,
+                                    float za,
+                                    float zb,
+                                    float zc) {
     // Compute bounding rect of triangle
-    vec2_t vmin = {
-        .x = min(min(a->x, b->x), c->x),
-        .y = min(min(a->y, b->y), c->y),
-    };
-    vec2_t vmax = {
-        .x = max(max(a->x + 1, b->x + 1), c->x + 1),
-        .y = max(max(a->y + 1, b->y + 1), c->y + 1),
-    };
+    unsigned minx = max(min(min(pos_a.x, pos_b.x), pos_c.x), 0);
+    unsigned miny = max(min(min(pos_a.y, pos_b.y), pos_c.y), 0);
+    unsigned maxx = min(max(max(pos_a.x + 1, pos_b.x + 1), pos_c.x + 1),
+                        framebuffer->width - 1);
+    unsigned maxy = min(max(max(pos_a.y + 1, pos_b.y + 1), pos_c.y + 1),
+                        framebuffer->width - 1);
 
-    // Scan each pixel
-    float eps = 1e-5;
-    for (unsigned i = vmin.x; i <= vmax.x; i++) {
-        for (unsigned j = vmin.y; j <= vmax.y; j++) {
-            vec2_t position = {
-                .x = i,
-                .y = j,
-            };
+    // Scan each pixel in the bounding box
+    static const float e = 1e-5;
+    for (unsigned i = minx; i <= maxx; i++) {
+        for (unsigned j = miny; j <= maxy; j++) {
+            vec2_t point = {i, j};
+            vec3_t tricoord = barycentric(pos_a, pos_b, pos_c, point);
+            if (tricoord.x >= -e && tricoord.y >= -e && tricoord.z >= -e) {
+                // Interpolate perspective-correct z and uv coordinates
+                float iz = tricoord.x / za + tricoord.y / zb + tricoord.z / zc;
+                float z = 1 / iz;
+                float u = z * ((uv_a.x / za) * tricoord.x +
+                               (uv_b.x / zb) * tricoord.y +
+                               (uv_c.x / zc) * tricoord.z);
+                float v = z * ((uv_a.y / za) * tricoord.x +
+                               (uv_b.y / zb) * tricoord.y +
+                               (uv_c.y / zc) * tricoord.z);
 
-            vec3_t barypos;
-            compute_barycentric(a, b, c, &position, &barypos);
-            if (barypos.x >= -eps && barypos.y >= -eps && barypos.z >= -eps) {
-                // Interpolate colors
+                // Calculate texture buffer offset
+                unsigned tx = u * texture->width;
+                unsigned ty = v * texture->height;
+                unsigned texture_offset = (ty * texture->width + tx) * 4;
+
+                // Build color
                 color_t color = {
-                    .r = ca->r * barypos.x + cb->r * barypos.y +
-                         cc->r * barypos.z,
-                    .g = ca->g * barypos.x + cb->g * barypos.y +
-                         cc->g * barypos.z,
-                    .b = ca->b * barypos.x + cb->b * barypos.y +
-                         cc->b * barypos.z,
-                    .a = ca->a * barypos.x + cb->a * barypos.y +
-                         cc->a * barypos.z,
+                    .r = texture->colors[texture_offset + 0],
+                    .g = texture->colors[texture_offset + 1],
+                    .b = texture->colors[texture_offset + 2],
+                    .a = texture->colors[texture_offset + 3],
                 };
 
-                // Interpolate depth
-                float depth = barypos.x * da + barypos.y * db + barypos.z * dc;
-
                 // Depth culling
-                unsigned offset = j * framebuffer->width + i;
-                if (depth < framebuffer->depth[offset]) {
-                    write_framebuffer(framebuffer, &position, &color, depth);
+                unsigned framebuffer_offset = j * framebuffer->width + i;
+                if (z < framebuffer->depth[framebuffer_offset]) {
+                    write_framebuffer(framebuffer, point, color, z);
                 }
             }
         }
@@ -124,20 +125,20 @@ void rasterize_triangle_framebuffer(framebuffer_t *framebuffer,
 }
 
 void write_framebuffer(framebuffer_t *framebuffer,
-                       const vec2_t *position,
-                       const color_t *color,
+                       vec2_t position,
+                       color_t color,
                        float depth) {
-    unsigned row = position->y;
-    unsigned col = position->x;
+    unsigned row = position.y;
+    unsigned col = position.x;
     unsigned offset = row * framebuffer->width + col;
-    memcpy(framebuffer->color + offset, color, sizeof(color_t));
+    memcpy(framebuffer->color + offset, &color, sizeof(color_t));
     framebuffer->depth[offset] = depth;
 }
 
-void clear_framebuffer(framebuffer_t *framebuffer, const color_t *clear_value) {
+void clear_framebuffer(framebuffer_t *framebuffer, color_t clear_color) {
     unsigned dimensions = framebuffer->width * framebuffer->height;
     for (unsigned offset = 0; offset < dimensions; offset++) {
-        memcpy(framebuffer->color + offset, clear_value, sizeof(color_t));
+        memcpy(framebuffer->color + offset, &clear_color, sizeof(color_t));
         framebuffer->depth[offset] = FLT_MAX;
     }
 }

@@ -1,3 +1,9 @@
 [submodule "submodules/SDL"]
 	path = submodules/SDL
 	url = https://github.com/libsdl-org/SDL.git
+[submodule "submodules/stb"]
+	path = submodules/stb
+	url = git@github.com:nothings/stb.git
+[submodule "submodules/tinyobjloader-c"]
+	path = submodules/tinyobjloader-c
+	url = git@github.com:syoyo/tinyobjloader-c.git

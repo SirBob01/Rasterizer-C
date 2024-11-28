@@ -13,4 +13,5 @@ file(GLOB_RECURSE INCLUDE "./src/*.h")
 file(GLOB_RECURSE SOURCES "./src/*.c")
 
 add_executable(rasterizerc ${SOURCES})
+target_include_directories(rasterizerc PUBLIC "submodules/stb" "submodules/tinyobjloader-c")
 target_link_libraries(rasterizerc PRIVATE SDL3::SDL3-shared)

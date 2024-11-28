@@ -2,8 +2,9 @@
 #define FRAMEBUFFER_H
 
 #include "color.h"
-#include "math.h"
+#include "math/mat4.h"
 #include "mesh.h"
+#include "texture.h"
 
 /**
  * @brief Buffer of RGBA color pixels that represents a render target.
@@ -45,34 +46,37 @@ void destroy_framebuffer(framebuffer_t *framebuffer);
  */
 void draw_mesh_framebuffer(framebuffer_t *framebuffer,
                            const mesh_t *mesh,
-                           const mat4_t *model,
-                           const mat4_t *view,
-                           const mat4_t *projection);
+                           const texture_t *texture,
+                           mat4_t model,
+                           mat4_t view,
+                           mat4_t projection);
 
 /**
  * @brief Rasterize a triangle.
  *
  * @param framebuffer
- * @param a A position
- * @param b B position
- * @param c C position
- * @param ca A color
- * @param cb B color
- * @param cc C color
- * @param da A depth
- * @param db B depth
- * @param dc C depth
+ * @param texture
+ * @param pos_a
+ * @param pos_b
+ * @param pos_c
+ * @param uv_a
+ * @param uv_b
+ * @param uv_c
+ * @param za
+ * @param zb
+ * @param zc
  */
 void rasterize_triangle_framebuffer(framebuffer_t *framebuffer,
-                                    const vec2_t *a,
-                                    const vec2_t *b,
-                                    const vec2_t *c,
-                                    const color_t *ca,
-                                    const color_t *cb,
-                                    const color_t *cc,
-                                    float da,
-                                    float db,
-                                    float dc);
+                                    const texture_t *texture,
+                                    vec2_t pos_a,
+                                    vec2_t pos_b,
+                                    vec2_t pos_c,
+                                    vec2_t uv_a,
+                                    vec2_t uv_b,
+                                    vec2_t uv_c,
+                                    float za,
+                                    float zb,
+                                    float zc);
 
 /**
  * @brief Draw a pixel to the framebuffer.
@@ -83,16 +87,16 @@ void rasterize_triangle_framebuffer(framebuffer_t *framebuffer,
  * @param depth
  */
 void write_framebuffer(framebuffer_t *framebuffer,
-                       const vec2_t *position,
-                       const color_t *color,
+                       vec2_t position,
+                       color_t color,
                        float depth);
 
 /**
  * @brief Clear the framebuffer.
  *
  * @param framebuffer
- * @param clear_value
+ * @param clear_color
  */
-void clear_framebuffer(framebuffer_t *framebuffer, const color_t *clear_value);
+void clear_framebuffer(framebuffer_t *framebuffer, color_t clear_color);
 
 #endif

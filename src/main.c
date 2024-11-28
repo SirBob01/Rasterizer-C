@@ -1,29 +1,27 @@
+#include <SDL3/SDL_keycode.h>
+#include <math.h>
+
 #include "display.h"
 #include "framebuffer.h"
 #include "input.h"
-#include "math.h"
+#include "math/utils.h"
 #include "mesh.h"
-#include <math.h>
 
-static const vec3_t GEOM_POSITIONS[4] = {
-    {-0.5, 0.0, -0.5},
-    {0.5, 0.0, -0.5},
-    {0.5, 0.0, 0.5},
-    {-0.5, 0.0, 0.5},
-};
-static const color_t GEOM_COLORS[4] = {
-    {.r = 255, .g = 0, .b = 0, .a = 255},
-    {.r = 0, .g = 255, .b = 0, .a = 255},
-    {.r = 0, .g = 0, .b = 255, .a = 255},
-    {.r = 255, .g = 255, .b = 255, .a = 255},
-};
-static const float LOGICAL_WIDTH = 320;
-static const float LOGICAL_HEIGHT = 240;
+static const float LOGICAL_WIDTH = 640;
+static const float LOGICAL_HEIGHT = 480;
 
 int main() {
     // Create the framebuffer
     framebuffer_t framebuffer;
     create_framebuffer(&framebuffer, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+    // Create the mesh
+    mesh_t mesh;
+    load_obj_mesh(&mesh, "../assets/viking_room.obj");
+
+    // Create the texture
+    texture_t texture;
+    load_texture(&texture, "../assets/viking_room.png");
 
     // Initialize display
     display_t display;
@@ -34,65 +32,80 @@ int main() {
     create_input(&input);
 
     // Clear value
-    color_t clear_value = {.r = 0, .g = 0, .b = 0, .a = 255};
+    color_t clear_color = {
+        .r = 0,
+        .g = 0,
+        .b = 0,
+        .a = 255,
+    };
 
-    // Mesh definition
-    mesh_t mesh;
-    create_mesh(&mesh, 4, 6);
-    for (unsigned i = 0; i < 4; i++) {
-        memcpy(&mesh.vertices[i].position, &GEOM_POSITIONS[i], sizeof(vec3_t));
-        memcpy(&mesh.vertices[i].color, &GEOM_COLORS[i], sizeof(color_t));
-    }
-    mesh.indices[0] = 0;
-    mesh.indices[1] = 1;
-    mesh.indices[2] = 2;
-    mesh.indices[3] = 2;
-    mesh.indices[4] = 3;
-    mesh.indices[5] = 0;
-
-    mat4_t model0, model1, view, projection;
+    // Camera vectors
     vec3_t eye = {2, 2, 2};
-    vec3_t forward = {-2, -2, -2};
     vec3_t up = {0, 1, 0};
-    normalize_vec3(&forward);
+    vec3_t forward = {-2, -2, -2};
+    forward = normalize_vec3(forward);
 
-    make_identity_mat4(&model0);
-    make_identity_mat4(&model1);
-    make_view_mat4(&view, &eye, &forward, &up);
-    make_perspective_mat4(&projection,
-                          (float)framebuffer.width / framebuffer.height,
-                          degrees_to_radians(45.0),
-                          0.1,
-                          10000);
+    // Coordinate space matrices
+    float aspect = (float)framebuffer.width / framebuffer.height;
+    float fovy = degrees_to_radians(45.0);
+    mat4_t projection = make_perspective_mat4(aspect, fovy, 0.1, 10000);
+
+    // Model orientation correction rotation
+    vec3_t rotation_axis = {1, 0, 0};
+    quat_t correction_rotation = make_axis_angle_quat(rotation_axis, -M_PI_2);
 
     // Main loop
+    float speed = 0.01;
     float timer = 0;
     while (!input.quit) {
         poll_input(&input);
 
+        if (is_keydown_input(&input, SDLK_W)) {
+            eye = add_vec3(eye, scale_vec3(forward, speed));
+        }
+        if (is_keydown_input(&input, SDLK_S)) {
+            eye = sub_vec3(eye, scale_vec3(forward, speed));
+        }
+        if (is_keydown_input(&input, SDLK_Q)) {
+            eye = add_vec3(eye, scale_vec3(up, speed));
+        }
+        if (is_keydown_input(&input, SDLK_E)) {
+            eye = sub_vec3(eye, scale_vec3(up, speed));
+        }
+
+        vec3_t right = cross_vec3(forward, up);
+        if (is_keydown_input(&input, SDLK_D)) {
+            eye = add_vec3(eye, scale_vec3(right, speed));
+        }
+        if (is_keydown_input(&input, SDLK_A)) {
+            eye = sub_vec3(eye, scale_vec3(right, speed));
+        }
+
+        mat4_t view = make_view_mat4(eye, forward, up);
+
+        vec3_t position = {0, 0, 0};
         vec3_t scale = {1, 1, 1};
         vec3_t rotation_axis = {0, 1, 0};
+        quat_t rotation =
+            multiply_quat(make_axis_angle_quat(rotation_axis, -timer - M_PI_2),
+                          correction_rotation);
+        mat4_t model = make_transform_mat4(position, rotation, scale);
 
-        vec3_t position0 = {0, 0, 0};
-        quat_t rotation0;
-        make_axis_angle_quat(&rotation0, &rotation_axis, timer);
-        make_transform_mat4(&model0, &position0, &rotation0, &scale);
-
-        vec3_t position1 = {0, sin(timer) * 0.5, 0};
-        quat_t rotation1;
-        make_axis_angle_quat(&rotation1, &rotation_axis, -timer / 2);
-        make_transform_mat4(&model1, &position1, &rotation1, &scale);
-
-        draw_mesh_framebuffer(&framebuffer, &mesh, &model0, &view, &projection);
-        draw_mesh_framebuffer(&framebuffer, &mesh, &model1, &view, &projection);
+        draw_mesh_framebuffer(&framebuffer,
+                              &mesh,
+                              &texture,
+                              model,
+                              view,
+                              projection);
 
         refresh_display(&display, &framebuffer);
-        clear_framebuffer(&framebuffer, &clear_value);
+        clear_framebuffer(&framebuffer, clear_color);
 
         timer += 0.001;
     }
 
     // Cleanup
+    destroy_texture(&texture);
     destroy_mesh(&mesh);
     destroy_input(&input);
     destroy_display(&display);
