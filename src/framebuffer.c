@@ -95,41 +95,51 @@ void rasterize_triangle_framebuffer(framebuffer_t *framebuffer,
     unsigned maxy = min(max(max(pos_a.y + 1, pos_b.y + 1), pos_c.y + 1),
                         framebuffer->width - 1);
 
+    // Precompute barycentric scratch values
+    vec2_t ab = sub_vec2(pos_b, pos_a);
+    vec2_t ac = sub_vec2(pos_c, pos_a);
+    float inv_area = 1 / cross_vec2(ab, ac);
+
     // Scan each pixel in the bounding box
-    static const float e = 1e-5;
     for (unsigned i = minx; i <= maxx; i++) {
         for (unsigned j = miny; j <= maxy; j++) {
             vec2_t point = {i, j};
-            vec3_t tricoord = barycentric(pos_a, pos_b, pos_c, point);
-            if (tricoord.x >= -e && tricoord.y >= -e && tricoord.z >= -e) {
-                // Interpolate perspective-correct z and uv coordinates
-                float iz = tricoord.x / za + tricoord.y / zb + tricoord.z / zc;
-                float z = 1 / iz;
-                float u = z * ((uv_a.x / za) * tricoord.x +
-                               (uv_b.x / zb) * tricoord.y +
-                               (uv_c.x / zc) * tricoord.z);
-                float v = z * ((uv_a.y / za) * tricoord.x +
-                               (uv_b.y / zb) * tricoord.y +
-                               (uv_c.y / zc) * tricoord.z);
 
-                // Calculate texture buffer offset
-                unsigned tx = u * texture->width;
-                unsigned ty = v * texture->height;
-                unsigned texture_offset = (ty * texture->width + tx) * 4;
+            // Compute per pixel barycentric coordinates
+            vec2_t ap = sub_vec2(point, pos_a);
+            float w1 = cross_vec2(ap, ac) * inv_area;
+            float w2 = cross_vec2(ab, ap) * inv_area;
+            float w0 = 1 - w1 - w2;
 
-                // Build color
-                color_t color = {
-                    .r = texture->colors[texture_offset + 0],
-                    .g = texture->colors[texture_offset + 1],
-                    .b = texture->colors[texture_offset + 2],
-                    .a = texture->colors[texture_offset + 3],
-                };
+            // Skip out of bounds pixels
+            if (w0 < 0 || w1 < 0 || w2 < 0) {
+                continue;
+            }
 
-                // Depth culling
-                unsigned framebuffer_offset = j * framebuffer->width + i;
-                if (z < framebuffer->depth[framebuffer_offset]) {
-                    write_framebuffer(framebuffer, point, color, z);
-                }
+            // Interpolate perspective-correct z and uv coordinates
+            float z = 1 / (w0 / za + w1 / zb + w2 / zc);
+            float u = z * ((uv_a.x / za) * w0 + (uv_b.x / zb) * w1 +
+                           (uv_c.x / zc) * w2);
+            float v = z * ((uv_a.y / za) * w0 + (uv_b.y / zb) * w1 +
+                           (uv_c.y / zc) * w2);
+
+            // Calculate texture buffer offset
+            unsigned tx = u * texture->width;
+            unsigned ty = v * texture->height;
+            unsigned texture_offset = (ty * texture->width + tx) * 4;
+
+            // Build color
+            color_t color = {
+                .r = texture->colors[texture_offset + 0],
+                .g = texture->colors[texture_offset + 1],
+                .b = texture->colors[texture_offset + 2],
+                .a = texture->colors[texture_offset + 3],
+            };
+
+            // Depth culling
+            unsigned framebuffer_offset = j * framebuffer->width + i;
+            if (z < framebuffer->depth[framebuffer_offset]) {
+                write_framebuffer(framebuffer, point, color, z);
             }
         }
     }

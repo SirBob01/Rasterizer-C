@@ -47,15 +47,4 @@ float radians_to_degrees(float radians);
  */
 vec2_t clip_to_raster(vec4_t clip, unsigned width, unsigned height);
 
-/**
- * @brief Compute barycentric coordinates of 2D triangle.
- *
- * @param a
- * @param b
- * @param c
- * @param point
- * @return vec3_t
- */
-vec3_t barycentric(vec2_t a, vec2_t b, vec2_t c, vec2_t point);
-
 #endif
