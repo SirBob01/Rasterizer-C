@@ -54,6 +54,10 @@ void destroy_display(display_t *display) {
     SDL_DestroyWindow(display->window);
 }
 
+void set_title_display(display_t *display, const char *title) {
+    SDL_SetWindowTitle(display->window, title);
+}
+
 void refresh_display(display_t *display, framebuffer_t *framebuffer) {
     // Update the texture
     SDL_UpdateTexture(display->texture,

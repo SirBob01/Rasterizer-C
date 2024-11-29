@@ -35,6 +35,14 @@ void create_display(display_t *display,
 void destroy_display(display_t *display);
 
 /**
+ * @brief Set the title of the display.
+ *
+ * @param display
+ * @param title
+ */
+void set_title_display(display_t *display, const char *title);
+
+/**
  * @brief Render a framebuffer onto the display.
  *
  * @param display

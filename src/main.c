@@ -1,6 +1,8 @@
 #include <SDL3/SDL_keycode.h>
 #include <math.h>
+#include <stdio.h>
 
+#include "clock.h"
 #include "display.h"
 #include "framebuffer.h"
 #include "input.h"
@@ -54,10 +56,16 @@ int main() {
     vec3_t rotation_axis = {1, 0, 0};
     quat_t correction_rotation = make_axis_angle_quat(rotation_axis, -M_PI_2);
 
+    // Window title buffer
+    char title[64];
+
     // Main loop
     float speed = 0.01;
     float timer = 0;
+    float dt_average = 0;
+    float dt_counter = 0;
     while (!input.quit) {
+        float start_time = get_time();
         poll_input(&input);
 
         if (is_keydown_input(&input, SDLK_W)) {
@@ -103,6 +111,16 @@ int main() {
         clear_framebuffer(&framebuffer, clear_color);
 
         timer += 0.001;
+
+        // Compute average delta time and write to window title
+        dt_average += (get_time() - start_time);
+        dt_counter += 1;
+        if (dt_counter == 100.0) {
+            snprintf(title, sizeof(title), "%f ms", dt_average / dt_counter);
+            set_title_display(&display, title);
+            dt_average = 0;
+            dt_counter = 0;
+        }
     }
 
     // Cleanup
