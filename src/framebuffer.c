@@ -117,11 +117,14 @@ void rasterize_triangle_framebuffer(framebuffer_t *framebuffer,
             }
 
             // Interpolate perspective-correct z and uv coordinates
-            float z = 1 / (w0 / za + w1 / zb + w2 / zc);
-            float u = z * ((uv_a.x / za) * w0 + (uv_b.x / zb) * w1 +
-                           (uv_c.x / zc) * w2);
-            float v = z * ((uv_a.y / za) * w0 + (uv_b.y / zb) * w1 +
-                           (uv_c.y / zc) * w2);
+            float inv_za = 1 / za;
+            float inv_zb = 1 / zb;
+            float inv_zc = 1 / zc;
+            float z = 1 / (w0 * inv_za + w1 * inv_zb + w2 * inv_zc);
+            float u = z * ((uv_a.x * inv_za) * w0 + (uv_b.x * inv_zb) * w1 +
+                           (uv_c.x * inv_zc) * w2);
+            float v = z * ((uv_a.y * inv_za) * w0 + (uv_b.y * inv_zb) * w1 +
+                           (uv_c.y * inv_zc) * w2);
 
             // Calculate texture buffer offset
             unsigned tx = u * texture->width;
